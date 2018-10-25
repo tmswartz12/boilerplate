@@ -1,6 +1,8 @@
 const express = require("express");
 const app = express();
 const path = require("path");
+const Sequelize = require("sequelize");
+var cookieParser = require("cookie-parser");
 
 const morgan = require("morgan");
 app.use(morgan("dev"));
@@ -8,6 +10,35 @@ app.use(morgan("dev"));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.use(express.json());
+
+/* ----- this section is for passport middleware and session store*/
+const db = require("./db");
+const session = require("express-session");
+
+const SequelizeStore = require("connect-session-sequelize")(session.Store);
+const dbStore = new SequelizeStore({ db });
+
+// sync so that our session table gets created
+dbStore.sync();
+
+//session middleware for passport
+
+app.use(cookieParser());
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "a wildly insecure secret",
+    store: dbStore,
+    resave: false,
+    saveUninitialized: false
+  })
+);
+
+//initialize passport to attach req.user to the session
+const passport = require("passport");
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use("/api", require("./api")); // matches all requests to /api
 
